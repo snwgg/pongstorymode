@@ -1,14 +1,27 @@
 <!DOCTYPE html>
-<link rel="stylesheet" href="style.css">
 <html lang="pt-BR">
+    <link rel="stylesheet" href="style.css">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pong Game</title>
+  <title>Pong Mobile</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <canvas id="gameCanvas" width="800" height="500"></canvas>
+  <div id="startScreen" class="screen">
+    <h1>PONG</h1>
+    <button id="startButton">Jogar</button>
+  </div>
+
+  <div id="gameContainer" class="hidden">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <div id="endScreen" class="screen hidden">
+    <h2 id="winnerText"></h2>
+    <button id="restartButton">Jogar Novamente</button>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
