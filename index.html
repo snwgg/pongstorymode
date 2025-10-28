@@ -1,25 +1,33 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-    <link rel="stylesheet" href="style.css">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Pong Mobile</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="startScreen" class="screen">
-    <h1>PONG</h1>
-    <button id="startButton">Jogar</button>
-  </div>
+  <div class="wrap">
+    <div class="game-card">
+      <header>
+        <h1>Pong — modo móvel</h1>
+        <div class="controls">
+          <button id="btnServe" class="primary">Servir</button>
+          <button id="btnPause">Pausar</button>
+          <button id="btnReset">Reiniciar</button>
+        </div>
+      </header>
 
-  <div id="gameContainer" class="hidden">
-    <canvas id="gameCanvas"></canvas>
-  </div>
+      <div id="canvasWrap">
+        <canvas id="gameCanvas" aria-label="Pong game canvas"></canvas>
+        <div class="ui-overlay" id="levelLabel">Nível: Fácil</div>
+        <div class="score" id="scoreLabel">Você 0 — 0 CPU</div>
+      </div>
 
-  <div id="endScreen" class="screen hidden">
-    <h2 id="winnerText"></h2>
-    <button id="restartButton">Jogar Novamente</button>
+      <div class="hint">
+        Toque e arraste para mover a raquete. Toque em "Servir" ou toque na tela para iniciar.
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>

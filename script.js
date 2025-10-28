@@ -1,157 +1,195 @@
-const startScreen = document.getElementById("startScreen");
-const gameContainer = document.getElementById("gameContainer");
-const endScreen = document.getElementById("endScreen");
-const startButton = document.getElementById("startButton");
-const restartButton = document.getElementById("restartButton");
-const winnerText = document.getElementById("winnerText");
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+(function () {
+  const canvas = document.getElementById('gameCanvas');
+  const wrap = document.getElementById('canvasWrap');
+  const serveBtn = document.getElementById('btnServe');
+  const pauseBtn = document.getElementById('btnPause');
+  const resetBtn = document.getElementById('btnReset');
+  const levelLabel = document.getElementById('levelLabel');
+  const scoreLabel = document.getElementById('scoreLabel');
+  const ctx = canvas.getContext('2d');
 
-let gameInterval;
-let playerY, aiY, ballX, ballY, ballSpeedX, ballSpeedY;
-let paddleWidth, paddleHeight, ballRadius;
-let playerScore, aiScore;
-let gameOver = false;
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  let w, h;
 
-// Ajusta tamanho real do canvas conforme tela
-function resizeCanvas() {
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
-}
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
+  const game = {
+    width: 320,
+    height: 480,
+    paddleWidthPct: 0.22,
+    paddleHeight: 12,
+    player: null,
+    cpu: null,
+    ball: null,
+    running: false,
+    paused: false,
+    lastTime: 0,
+    scoreP: 0,
+    scoreC: 0,
+    difficulty: 'easy'
+  };
 
-// Inicia o jogo
-startButton.addEventListener("click", startGame);
-restartButton.addEventListener("click", startGame);
-
-function startGame() {
-  startScreen.classList.add("hidden");
-  endScreen.classList.add("hidden");
-  gameContainer.classList.remove("hidden");
-
-  playerY = canvas.height / 2 - 50;
-  aiY = canvas.height / 2 - 50;
-  paddleWidth = 10;
-  paddleHeight = canvas.height / 5;
-  ballRadius = 8;
-  ballX = canvas.width / 2;
-  ballY = canvas.height / 2;
-  ballSpeedX = 5;
-  ballSpeedY = 3;
-  playerScore = 0;
-  aiScore = 0;
-  gameOver = false;
-
-  if (gameInterval) clearInterval(gameInterval);
-  gameInterval = setInterval(gameLoop, 1000 / 60);
-}
-
-function drawRect(x, y, w, h, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
-}
-
-function drawCircle(x, y, r, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawText(text, x, y, color, size) {
-  ctx.fillStyle = color;
-  ctx.font = `${size}px Arial`;
-  ctx.fillText(text, x, y);
-}
-
-function resetBall() {
-  ballX = canvas.width / 2;
-  ballY = canvas.height / 2;
-  ballSpeedX = -ballSpeedX;
-  ballSpeedY = 3 * (Math.random() > 0.5 ? 1 : -1);
-}
-
-function update() {
-  ballX += ballSpeedX;
-  ballY += ballSpeedY;
-
-  // colisão superior e inferior
-  if (ballY + ballRadius > canvas.height || ballY - ballRadius < 0) {
-    ballSpeedY = -ballSpeedY;
+  function resize() {
+    const rect = wrap.getBoundingClientRect();
+    const availW = Math.min(rect.width, 920);
+    const availH = Math.min(window.innerHeight - 200, 720);
+    canvas.style.width = availW + 'px';
+    canvas.style.height = availH + 'px';
+    w = Math.round(availW * DPR);
+    h = Math.round(availH * DPR);
+    canvas.width = w;
+    canvas.height = h;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(DPR, DPR);
+    game.width = availW;
+    game.height = availH;
   }
 
-  // movimento da IA
-  let aiCenter = aiY + paddleHeight / 2;
-  if (aiCenter < ballY - 35) aiY += 4;
-  else if (aiCenter > ballY + 35) aiY -= 4;
-
-  // colisão com jogador
-  if (
-    ballX - ballRadius < paddleWidth &&
-    ballY > playerY &&
-    ballY < playerY + paddleHeight
-  ) {
-    ballSpeedX = -ballSpeedX;
+  function resetGame() {
+    game.scoreP = 0;
+    game.scoreC = 0;
+    createEntities();
+    game.running = false;
+    game.paused = false;
+    updateScoreLabel();
   }
 
-  // colisão com IA
-  if (
-    ballX + ballRadius > canvas.width - paddleWidth &&
-    ballY > aiY &&
-    ballY < aiY + paddleHeight
-  ) {
-    ballSpeedX = -ballSpeedX;
+  function createEntities() {
+    const gw = game.width;
+    const ph = game.paddleHeight;
+    const pw = Math.max(48, Math.floor(gw * game.paddleWidthPct));
+    game.player = { w: pw, h: ph, x: (gw - pw) / 2, y: game.height - ph - 10 };
+    game.cpu = { w: pw, h: ph, x: (gw - pw) / 2, y: 10 };
+    game.ball = {
+      r: Math.max(7, Math.floor(gw * 0.018)),
+      x: gw / 2,
+      y: game.height / 2,
+      vx: 0,
+      vy: 0,
+      speed: Math.max(220, gw * 0.6)
+    };
   }
 
-  // pontuação
-  if (ballX + ballRadius > canvas.width) {
-    playerScore++;
-    resetBall();
-  } else if (ballX - ballRadius < 0) {
-    aiScore++;
-    resetBall();
+  function serve(direction = 1) {
+    const b = game.ball;
+    b.x = game.width / 2;
+    b.y = game.height / 2;
+    const angle = Math.random() * 0.6 - 0.3;
+    b.vx = Math.sin(angle) * b.speed;
+    b.vy = direction * Math.cos(angle) * b.speed;
+    game.running = true;
+    game.paused = false;
   }
 
-  // fim de jogo
-  if (playerScore >= 5 || aiScore >= 5) {
-    endGame();
+  function updateScoreLabel() {
+    scoreLabel.textContent = `Você ${game.scoreP} — ${game.scoreC} CPU`;
   }
-}
 
-function render() {
-  drawRect(0, 0, canvas.width, canvas.height, "black");
-  drawRect(0, playerY, paddleWidth, paddleHeight, "#00ff99");
-  drawRect(canvas.width - paddleWidth, aiY, paddleWidth, paddleHeight, "#00ff99");
-  drawCircle(ballX, ballY, ballRadius, "#00ff99");
-  drawText(playerScore, canvas.width / 4, canvas.height / 6, "#fff", canvas.width / 15);
-  drawText(aiScore, (canvas.width * 3) / 4, canvas.height / 6, "#fff", canvas.width / 15);
-}
+  function draw() {
+    ctx.clearRect(0, 0, game.width, game.height);
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([6, 8]);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 2;
+    ctx.moveTo(game.width / 2, 0);
+    ctx.lineTo(game.width / 2, game.height);
+    ctx.stroke();
+    ctx.restore();
 
-function gameLoop() {
-  if (!gameOver) {
-    update();
-    render();
+    ctx.fillStyle = '#e6f9ef';
+    ctx.fillRect(game.cpu.x, game.cpu.y, game.cpu.w, game.cpu.h);
+    ctx.fillStyle = '#a7f3d0';
+    ctx.fillRect(game.player.x, game.player.y, game.player.w, game.player.h);
+    ctx.beginPath();
+    ctx.fillStyle = '#34d399';
+    ctx.arc(game.ball.x, game.ball.y, game.ball.r, 0, Math.PI * 2);
+    ctx.fill();
   }
-}
 
-function endGame() {
-  gameOver = true;
-  clearInterval(gameInterval);
-  gameContainer.classList.add("hidden");
-  endScreen.classList.remove("hidden");
-  winnerText.textContent = playerScore > aiScore ? "Você venceu!" : "Você perdeu!";
-}
+  function step(dt) {
+    if (!game.running || game.paused) return;
+    const b = game.ball;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
 
-// Controles
-window.addEventListener("mousemove", (e) => {
-  const rect = canvas.getBoundingClientRect();
-  playerY = e.clientY - rect.top - paddleHeight / 2;
-});
+    if (b.x - b.r < 0 || b.x + b.r > game.width) b.vx *= -1;
 
-canvas.addEventListener("touchmove", (e) => {
-  e.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const touchY = e.touches[0].clientY - rect.top;
-  playerY = touchY - paddleHeight / 2;
-});
+    if (b.y - b.r < 0) {
+      game.scoreP++;
+      updateScoreLabel();
+      game.running = false;
+      setTimeout(() => serve(1), 600);
+      return;
+    }
+    if (b.y + b.r > game.height) {
+      game.scoreC++;
+      updateScoreLabel();
+      game.running = false;
+      setTimeout(() => serve(-1), 600);
+      return;
+    }
+
+    if (circleRectCollision(b, game.player)) b.vy *= -1;
+    if (circleRectCollision(b, game.cpu)) b.vy *= -1;
+
+    const dx = b.x - (game.cpu.x + game.cpu.w / 2);
+    game.cpu.x += dx * 0.04;
+    clampPaddles();
+  }
+
+  function circleRectCollision(c, r) {
+    const rx = r.x, ry = r.y, rw = r.w, rh = r.h;
+    const closestX = Math.max(rx, Math.min(c.x, rx + rw));
+    const closestY = Math.max(ry, Math.min(c.y, ry + rh));
+    const dx = c.x - closestX, dy = c.y - closestY;
+    return dx * dx + dy * dy < c.r * c.r;
+  }
+
+  function clampPaddles() {
+    game.player.x = Math.max(0, Math.min(game.player.x, game.width - game.player.w));
+    game.cpu.x = Math.max(0, Math.min(game.cpu.x, game.width - game.cpu.w));
+  }
+
+  function movePlayerTo(x) {
+    game.player.x = x;
+    clampPaddles();
+  }
+
+  function getEventX(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches?.length) return e.touches[0].clientX - rect.left;
+    return e.clientX - rect.left;
+  }
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!game.running) serve(1);
+  });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    movePlayerTo(getEventX(e) - game.player.w / 2);
+  });
+
+  serveBtn.onclick = () => serve(1);
+  pauseBtn.onclick = () => {
+    game.paused = !game.paused;
+    pauseBtn.textContent = game.paused ? 'Retomar' : 'Pausar';
+  };
+  resetBtn.onclick = () => resetGame();
+
+  function loop(ts) {
+    if (!game.lastTime) game.lastTime = ts;
+    const dt = Math.min(0.03, (ts - game.lastTime) / 1000);
+    game.lastTime = ts;
+    step(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', resize);
+
+  resetGame();
+  resize();
+  draw();
+  requestAnimationFrame(loop);
+})();
